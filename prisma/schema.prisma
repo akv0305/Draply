@@ -1,0 +1,540 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============ ENUMS ============
+
+enum UserRole {
+  CUSTOMER
+  MERCHANT
+  ADMIN
+  RIDER
+}
+
+enum MerchantKycStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum StoreStatus {
+  ONLINE
+  OFFLINE
+  PAUSED
+}
+
+enum OrderType {
+  NORMAL
+  TRIAL
+}
+
+enum OrderStatus {
+  CREATED
+  PAYMENT_PENDING
+  PAID
+  STORE_NOTIFIED
+  ACCEPTED
+  REJECTED_BY_STORE
+  PACKED
+  RIDER_ASSIGNED
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  TRIAL_IN_PROGRESS
+  TRIAL_DECISION_DONE
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum SubOrderStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  PACKED
+  PICKED_UP
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMode {
+  UPI
+  CARD
+  COD
+  WALLET
+}
+
+enum PaymentStatus {
+  INITIATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum ReturnReason {
+  FITTING_ISSUE
+  QUALITY_ISSUE
+  COLOR_MISMATCH
+  WRONG_ITEM
+  DAMAGED_IN_TRANSIT
+  OTHER
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PICKUP_SCHEDULED
+  PICKED
+  IN_TRANSIT_TO_STORE
+  AT_STORE_QC
+  QC_PASSED
+  QC_FAILED
+  REFUND_INITIATED
+  REFUND_COMPLETED
+  CLOSED
+}
+
+enum RefundStatus {
+  INITIATED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum RefundMode {
+  ORIGINAL_PAYMENT
+  WALLET_CREDIT
+}
+
+enum RiderStatus {
+  OFFLINE
+  AVAILABLE
+  ASSIGNED
+  EN_ROUTE_TO_STORE
+  AT_STORE
+  EN_ROUTE_TO_CUSTOMER
+  AT_CUSTOMER
+  ON_BREAK
+}
+
+enum TrialItemDecision {
+  PENDING
+  KEPT
+  RETURNED
+}
+
+// ============ MODELS ============
+
+model User {
+  id            String     @id @default(cuid())
+  phone         String     @unique
+  email         String?    @unique
+  name          String?
+  role          UserRole   @default(CUSTOMER)
+  walletPaise   Int        @default(0)
+  isBlocked     Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  addresses     Address[]
+  orders        Order[]
+  returns       Return[]
+  reservations  InventoryReservation[]
+  ownedMerchant Merchant?  @relation("MerchantOwner")
+  rider         Rider?
+
+  @@index([role])
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  userId       String
+  label        String   // "Home", "Work"
+  line1        String
+  line2        String?
+  landmark     String?
+  city         String
+  pincode      String
+  state        String   @default("Telangana")
+  country      String   @default("India")
+  lat          Float
+  lng          Float
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ordersAsDeliv Order[] @relation("DeliveryAddress")
+
+  @@index([userId])
+  @@index([pincode])
+}
+
+model Merchant {
+  id           String              @id @default(cuid())
+  ownerId      String              @unique
+  legalName    String
+  displayName  String
+  gstin        String?
+  pan          String?
+  phone        String
+  email        String?
+  kycStatus    MerchantKycStatus   @default(PENDING)
+  payoutBank   String?             // last 4 only for demo
+  commissionBps Int                @default(1500) // 15%
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  owner        User                @relation("MerchantOwner", fields: [ownerId], references: [id])
+  stores       Store[]
+
+  @@index([kycStatus])
+}
+
+model Store {
+  id            String       @id @default(cuid())
+  merchantId    String
+  name          String
+  description   String?
+  phone         String
+  addressLine   String
+  city          String
+  pincode       String
+  state         String       @default("Telangana")
+  lat           Float
+  lng           Float
+  serviceRadiusKm Float      @default(4)
+  status        StoreStatus  @default(OFFLINE)
+  rating        Float        @default(0)
+  ratingCount   Int          @default(0)
+  avgPrepMins   Int          @default(8)
+  openTime      String       @default("10:00") // "HH:mm" IST
+  closeTime     String       @default("21:00")
+  bannerUrl     String?
+  logoUrl       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  merchant      Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  products      Product[]
+  inventory     InventoryLedger[]
+  subOrders     SubOrder[]
+  reservations  InventoryReservation[]
+
+  @@index([merchantId])
+  @@index([pincode])
+  @@index([status])
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  name      String
+  parentId  String?
+  imageUrl  String?
+  sortOrder Int        @default(0)
+
+  parent    Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryParent")
+  products  Product[]
+}
+
+model Product {
+  id           String     @id @default(cuid())
+  storeId      String
+  categoryId   String
+  title        String
+  description  String?
+  brand        String?
+  hsnCode      String?
+  isTrialEligible Boolean @default(true)
+  isActive     Boolean    @default(true)
+  attributes   Json?      // free-form: gender, fabric, sleeveLength, etc.
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category     Category   @relation(fields: [categoryId], references: [id])
+  variants     Variant[]
+
+  @@index([storeId])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model Variant {
+  id           String     @id @default(cuid())
+  productId    String
+  sku          String     @unique
+  size         String     // "S" | "M" | "L" | "XL" | "32" | "Free"
+  color        String
+  colorHex     String?
+  mrpPaise     Int
+  pricePaise   Int
+  images       String[]   // public URLs
+  weightGrams  Int        @default(300)
+  createdAt    DateTime   @default(now())
+
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventory    InventoryLedger[]
+  orderItems   OrderItem[]
+  reservations InventoryReservation[]
+  trialItems   TrialItem[]
+
+  @@index([productId])
+  @@index([sku])
+}
+
+model InventoryLedger {
+  id         String   @id @default(cuid())
+  variantId  String
+  storeId    String
+  qty        Int      // current available qty (denormalized for speed)
+  version    Int      @default(0) // optimistic lock
+  updatedAt  DateTime @updatedAt
+
+  variant    Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, storeId])
+  @@index([storeId])
+}
+
+model InventoryReservation {
+  id         String   @id @default(cuid())
+  variantId  String
+  storeId    String
+  userId     String
+  qty        Int
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  variant    Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([variantId, storeId])
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  updatedAt DateTime   @updatedAt
+  items     CartItem[]
+}
+
+model CartItem {
+  id         String   @id @default(cuid())
+  cartId     String
+  variantId  String
+  qty        Int      @default(1)
+  addedAt    DateTime @default(now())
+
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+}
+
+model Order {
+  id                  String        @id @default(cuid())
+  userId              String
+  type                OrderType     @default(NORMAL)
+  status              OrderStatus   @default(CREATED)
+  deliveryAddressId   String
+  itemsTotalPaise     Int
+  deliveryFeePaise    Int           @default(0)
+  discountPaise       Int           @default(0)
+  taxPaise            Int           @default(0)
+  totalPaise          Int
+  paymentMode         PaymentMode
+  paymentStatus       PaymentStatus @default(INITIATED)
+  paymentTxnId        String?
+  authorizedPaise     Int?          // for trial orders
+  capturedPaise       Int?
+  promisedDeliveryAt  DateTime?
+  placedAt            DateTime      @default(now())
+  completedAt         DateTime?
+
+  user                User          @relation(fields: [userId], references: [id])
+  deliveryAddress     Address       @relation("DeliveryAddress", fields: [deliveryAddressId], references: [id])
+  items               OrderItem[]
+  subOrders           SubOrder[]
+  trial               Trial?
+  events              OrderEvent[]
+  returns             Return[]
+  refunds             Refund[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([placedAt])
+}
+
+model OrderItem {
+  id              String      @id @default(cuid())
+  orderId         String
+  subOrderId      String
+  variantId       String
+  qty             Int
+  unitPricePaise  Int
+  lineTotalPaise  Int
+  isTrialKept     Boolean?    // null until trial decision; for NORMAL orders stays null
+
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  subOrder        SubOrder    @relation(fields: [subOrderId], references: [id], onDelete: Cascade)
+  variant         Variant     @relation(fields: [variantId], references: [id])
+  returns         Return[]
+
+  @@index([orderId])
+  @@index([subOrderId])
+  @@index([variantId])
+}
+
+model SubOrder {
+  id            String          @id @default(cuid())
+  orderId       String
+  storeId       String
+  status        SubOrderStatus  @default(PENDING)
+  pickupOtp     String?         // 4-digit
+  dropOtp       String?         // 4-digit
+  acceptedAt    DateTime?
+  packedAt      DateTime?
+  pickedUpAt    DateTime?
+  deliveredAt   DateTime?
+  riderId       String?
+
+  order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  store         Store           @relation(fields: [storeId], references: [id])
+  rider         Rider?          @relation(fields: [riderId], references: [id])
+  items         OrderItem[]
+  assignment    Assignment?
+
+  @@index([orderId])
+  @@index([storeId])
+  @@index([status])
+  @@index([riderId])
+}
+
+model Trial {
+  id                  String       @id @default(cuid())
+  orderId             String       @unique
+  trialDurationMins   Int          @default(15)
+  startedAt           DateTime?
+  decisionAt          DateTime?
+  depositPaise        Int          // amount held
+  capturedPaise       Int?         // final captured after decision
+
+  order               Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items               TrialItem[]
+}
+
+model TrialItem {
+  id         String              @id @default(cuid())
+  trialId    String
+  variantId  String
+  decision   TrialItemDecision   @default(PENDING)
+  decidedAt  DateTime?
+
+  trial      Trial               @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  variant    Variant             @relation(fields: [variantId], references: [id])
+
+  @@index([trialId])
+}
+
+model Rider {
+  id           String       @id @default(cuid())
+  userId       String       @unique
+  name         String
+  phone        String       @unique
+  vehicle      String       @default("BIKE")
+  status       RiderStatus  @default(OFFLINE)
+  lat          Float?
+  lng          Float?
+  rating       Float        @default(5)
+  ratingCount  Int          @default(0)
+  updatedAt    DateTime     @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subOrders    SubOrder[]
+  assignments  Assignment[]
+}
+
+model Assignment {
+  id           String     @id @default(cuid())
+  subOrderId   String     @unique
+  riderId      String
+  assignedAt   DateTime   @default(now())
+  acceptedAt   DateTime?
+  pickedAt     DateTime?
+  deliveredAt  DateTime?
+
+  subOrder     SubOrder   @relation(fields: [subOrderId], references: [id], onDelete: Cascade)
+  rider        Rider      @relation(fields: [riderId], references: [id])
+
+  @@index([riderId])
+}
+
+model Return {
+  id              String        @id @default(cuid())
+  orderId         String
+  orderItemId     String
+  userId          String
+  reason          ReturnReason
+  reasonNote      String?
+  status          ReturnStatus  @default(REQUESTED)
+  photos          String[]
+  qcNotes         String?
+  pickupOtp       String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+  refund          Refund?
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Refund {
+  id              String         @id @default(cuid())
+  orderId         String
+  returnId        String?        @unique
+  amountPaise     Int
+  mode            RefundMode     @default(ORIGINAL_PAYMENT)
+  status          RefundStatus   @default(INITIATED)
+  gatewayTxnId    String?
+  initiatedAt     DateTime       @default(now())
+  completedAt     DateTime?
+
+  order           Order          @relation(fields: [orderId], references: [id])
+  return          Return?        @relation(fields: [returnId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model OrderEvent {
+  id         String   @id @default(cuid())
+  orderId    String
+  type       String   // e.g. "ORDER_PLACED", "STATE_CHANGED", "RIDER_ASSIGNED"
+  payload    Json
+  actorId    String?  // user/merchant/rider/admin id; null = system
+  createdAt  DateTime @default(now())
+
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([type])
+  @@index([createdAt])
+}
