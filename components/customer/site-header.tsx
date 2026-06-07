@@ -4,18 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
 import { signOut } from "@/app/(auth)/actions";
+import { getCartSummary } from "@/lib/cart/get-cart-summary";
 
 // ── Phone resolver ────────────────────────────────────────────────────────────
-// Synthetic email: "<digits>@dev.draply.local" → "+" + digits
-// Real phone: prepend "+" if missing
-// Returns null (falls back gracefully) if neither pattern matches.
 function resolvePhone(
   email: string | undefined,
   phone: string | undefined
 ): string | null {
   if (email?.endsWith("@dev.draply.local")) {
     const digits = email.split("@")[0] ?? "";
-    // digits should be "919900000001" → "+919900000001"
     if (digits && /^\d{10,15}$/.test(digits)) return "+" + digits;
     return null;
   }
@@ -25,9 +22,6 @@ function resolvePhone(
   return null;
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// SiteHeader — Server Component
-// ════════════════════════════════════════════════════════════════════════════
 export default async function SiteHeader() {
   const supabase = createClient();
   const {
@@ -46,24 +40,58 @@ export default async function SiteHeader() {
     }
   }
 
+  // Fetch cart count only when logged in (avoids unnecessary DB hit otherwise)
+  const cartCount = currentUser ? (await getCartSummary()).itemCount : 0;
+
   return (
     <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        {/* ── Wordmark ─────────────────────────────────────────────────────── */}
+        {/* Wordmark */}
         <Link href="/" className="text-2xl font-extrabold tracking-tight">
           <span className="bg-gradient-to-r from-rose-500 to-amber-500 bg-clip-text text-transparent">
             Draply
           </span>
         </Link>
 
-        {/* ── Auth area ────────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3">
+        {/* Right side: cart + auth */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {currentUser && (
+            <>
+              {/* Cart link — visible on all screens */}
+              <Link
+                href="/cart"
+                className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100"
+                aria-label="Cart"
+              >
+                <span className="text-xl">🛒</span>
+                <span className="hidden sm:inline">Cart</span>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Orders link — desktop only */}
+              <Link
+                href="/orders"
+                className="hidden items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 sm:inline-flex"
+                aria-label="Orders"
+              >
+                <span className="text-lg">📦</span>
+                <span>Orders</span>
+              </Link>
+            </>
+          )}
+
           {currentUser ? (
             <>
-              <span className="hidden text-sm text-zinc-500 sm:inline">
+              <span className="hidden text-sm text-zinc-500 md:inline">
                 {currentUser.phone}
               </span>
-              <Badge variant="secondary">{currentUser.role}</Badge>
+              <Badge variant="secondary" className="hidden sm:inline-flex">
+                {currentUser.role}
+              </Badge>
               <form action={signOut}>
                 <Button variant="ghost" size="sm" type="submit">
                   Sign out
