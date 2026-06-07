@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -209,8 +210,12 @@ export default async function HomePage() {
               {products.map((product) => {
                 const cheapest = product.variants[0];
                 return (
-                  <Card
+                  <Link
                     key={product.id}
+                    href={`/p/${product.id}`}
+                    className="block"
+                  >
+                  <Card
                     className="overflow-hidden transition-shadow hover:shadow-md"
                   >
                     {/* Placeholder image — aspect 3/4 */}
@@ -247,6 +252,7 @@ export default async function HomePage() {
                       )}
                     </CardContent>
                   </Card>
+                  </Link>
                 );
               })}
             </div>
