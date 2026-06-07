@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { placeOrder } from "@/app/(customer)/checkout/actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -43,6 +45,7 @@ export default function CheckoutForm({
   defaultAddressId,
   summary,
 }: Props) {
+  const router = useRouter();
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     defaultAddressId
   );
@@ -60,11 +63,16 @@ export default function CheckoutForm({
       return;
     }
     startTransition(async () => {
-      // Simulate async latency to demonstrate isPending loading state
-      await new Promise<void>((r) => setTimeout(r, 600));
-      toast.success(
-        `STUB: Would place order to address ${selectedAddressId} via ${paymentMode}`
-      );
+      const result = await placeOrder({
+        addressId: selectedAddressId,
+        paymentMode,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success("Order placed successfully!");
+      router.push(`/orders/${result.data.orderId}`);
     });
   }
 
@@ -193,7 +201,7 @@ export default function CheckoutForm({
         </RadioGroup>
       </section>
 
-      {/* ── Section 3: Place-order button (STUB) ────────────────────────────── */}
+      {/* ── Section 3: Place-order button ───────────────────────────────────── */}
       <div>
         <Button
           className="h-12 w-full text-base"
@@ -206,9 +214,7 @@ export default function CheckoutForm({
                 "en-IN"
               )}`}
         </Button>
-        <p className="mt-2 text-center text-xs text-zinc-400">
-          ⚠️ STUB — order placement wired in the next update
-        </p>
+
       </div>
     </div>
   );
