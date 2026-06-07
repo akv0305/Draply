@@ -1,10 +1,6 @@
-import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
-import { cookies } from "next/headers";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { signOut } from "@/app/(auth)/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -35,22 +31,7 @@ const CAT_EMOJI: Record<string, string> = {
 // ════════════════════════════════════════════════════════════════════════════
 // Page
 // ════════════════════════════════════════════════════════════════════════════
-
 export default async function HomePage() {
-  // ── Auth check via Supabase session cookie (any sb-* cookie present = authed)
-  const cookieStore = cookies();
-  // We look up the current user via the prisma session helper; use a lightweight
-  // check: look for a supabase session cookie and pull the user.
-  // Per spec: check "draply_dev_user_id" cookie; fall back gracefully.
-  const devUserId = cookieStore.get("draply_dev_user_id")?.value;
-  let currentUser: { phone: string; role: string } | null = null;
-  if (devUserId) {
-    currentUser = await prisma.user.findUnique({
-      where: { id: devUserId },
-      select: { phone: true, role: true },
-    });
-  }
-
   // ── Parallel data fetch ───────────────────────────────────────────────────
   const [categories, stores, products] = await Promise.all([
     // Top-level categories (parentId is null), up to 6, sorted by sortOrder
@@ -96,40 +77,7 @@ export default async function HomePage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          {/* Wordmark */}
-          <Link href="/" className="text-2xl font-extrabold tracking-tight">
-            <span className="bg-gradient-to-r from-rose-500 to-amber-500 bg-clip-text text-transparent">
-              Draply
-            </span>
-          </Link>
-
-          {/* Auth area */}
-          <div className="flex items-center gap-3">
-            {currentUser ? (
-              <>
-                <span className="hidden text-sm text-zinc-500 sm:inline">
-                  {currentUser.phone}
-                </span>
-                <Badge variant="secondary">{currentUser.role}</Badge>
-                <form action={signOut}>
-                  <Button variant="ghost" size="sm" type="submit">
-                    Sign out
-                  </Button>
-                </form>
-              </>
-            ) : (
-              <Link href="/login">
-                <Button size="sm">Sign in</Button>
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
-
+    <div className="bg-white">
       {/* ── HERO ───────────────────────────────────────────────────────────── */}
       <section className="bg-gradient-to-br from-rose-50 via-white to-amber-50 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 text-center">

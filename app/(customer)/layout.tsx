@@ -1,13 +1,16 @@
-/**
- * Customer route group layout.
- * Public browsing (catalog, product pages) is allowed without auth.
- * Account/order actions are protected by individual pages or sub-layouts.
- * No role gate here — the middleware handles redirect for truly private pages.
- */
+import SiteHeader from "@/components/customer/site-header";
+import BottomNav from "@/components/customer/bottom-nav";
+
 export default function CustomerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen flex flex-col bg-white">
+      <SiteHeader />
+      <main className="flex-1 pb-20 md:pb-0">{children}</main>
+      <BottomNav />
+    </div>
+  );
 }
