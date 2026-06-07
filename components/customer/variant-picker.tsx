@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils/cn";
+import { addToCart } from "@/app/(customer)/cart/actions";
 
 // ── Money formatter ───────────────────────────────────────────────────────────
 function fmt(paise: number) {
@@ -34,6 +36,8 @@ export default function VariantPicker({
   variants,
   isTrialEligible,
 }: Props) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   // ── Unique sizes preserving first-seen order ──────────────────────────────
   // Computed before hooks so initial state is correct.
   const uniqueSizes = Array.from(new Set(variants.map((v) => v.size)));
@@ -87,9 +91,21 @@ export default function VariantPicker({
 
   function handleAddToCart() {
     if (!selectedVariant) return;
-    toast.success(
-      `Added ${selectedVariant.size}/${selectedVariant.color} to cart (stub)`
-    );
+    startTransition(async () => {
+      const res = await addToCart(selectedVariant.id, 1);
+      if (!res.ok) {
+        if (res.code === "UNAUTHENTICATED") {
+          toast.error("Please sign in to add to cart");
+          router.push("/login?next=" + window.location.pathname);
+          return;
+        }
+        toast.error(res.message);
+        return;
+      }
+      toast.success(
+        `Added ${selectedVariant.size} / ${selectedVariant.color} to cart`
+      );
+    });
   }
 
   function handleTryAtHome() {
@@ -99,7 +115,7 @@ export default function VariantPicker({
     );
   }
 
-  const canAct = !!selectedVariant && selectedVariant.inStock;
+  const canAct = !!selectedVariant && selectedVariant.inStock && !isPending;
 
   return (
     <div className="space-y-5">
@@ -201,10 +217,10 @@ export default function VariantPicker({
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button
           className="w-full sm:w-auto"
-          disabled={!canAct}
+          disabled={!canAct || isPending}
           onClick={handleAddToCart}
         >
-          Add to Cart
+          {isPending ? "Adding…" : "Add to Cart"}
         </Button>
         {isTrialEligible && (
           <Button
