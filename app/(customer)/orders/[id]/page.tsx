@@ -50,6 +50,11 @@ export default async function OrderDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
+      {/* ── Back link ───────────────────────────────────────────────────────── */}
+      <Link href="/orders" className="text-sm text-rose-600 hover:underline">
+        ← Back to orders
+      </Link>
+
       {/* ── Success banner ──────────────────────────────────────────────────── */}
       <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
         <div className="mb-2 text-5xl">✅</div>
