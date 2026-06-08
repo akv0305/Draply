@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { OrderProgressPoller } from "@/components/customer/order-progress-poller";
 
 export const dynamic = "force-dynamic";
 
@@ -48,12 +49,22 @@ export default async function OrderDetailPage({
 
   if (!order || order.userId !== user.id) notFound();
 
+  const isComplete =
+    order.status === "DELIVERED" ||
+    order.status === "CANCELLED" ||
+    order.status === "FAILED";
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       {/* ── Back link ───────────────────────────────────────────────────────── */}
       <Link href="/orders" className="text-sm text-rose-600 hover:underline">
         ← Back to orders
       </Link>
+
+      {/* ── Auto-progress poller (demo mode) ────────────────────────────────── */}
+      <div className="mt-3 mb-1">
+        <OrderProgressPoller orderId={order.id} isComplete={isComplete} />
+      </div>
 
       {/* ── Success banner ──────────────────────────────────────────────────── */}
       <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
