@@ -135,19 +135,18 @@ export default async function HomePage() {
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {categories.map((cat) => (
-                <Card
-                  key={cat.id}
-                  className="cursor-pointer rounded-2xl border border-slate-200 hover:border-rose-300 hover:shadow-md transition"
-                >
-                  <CardContent className="flex flex-col items-center justify-center gap-2 p-4 text-center">
-                    <span className="text-4xl mb-2">
-                      {CAT_EMOJI[cat.slug] ?? "👗"}
-                    </span>
-                    <span className="font-semibold text-sm text-zinc-700">
-                      {cat.name}
-                    </span>
-                  </CardContent>
-                </Card>
+                <Link key={cat.id} href={`/c/${cat.slug}`} className="block">
+                  <Card className="cursor-pointer rounded-2xl border border-slate-200 hover:border-rose-300 hover:shadow-md transition">
+                    <CardContent className="flex flex-col items-center justify-center gap-2 p-4 text-center">
+                      <span className="text-4xl mb-2">
+                        {CAT_EMOJI[cat.slug] ?? "👗"}
+                      </span>
+                      <span className="font-semibold text-sm text-zinc-700">
+                        {cat.name}
+                      </span>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
           )}
@@ -168,8 +167,8 @@ export default async function HomePage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {stores.map((store) => (
+                <Link key={store.id} href={`/s/${store.id}`} className="block">
                 <Card
-                  key={store.id}
                   className="overflow-hidden rounded-2xl border border-slate-200 hover:border-rose-300 hover:shadow-md transition"
                 >
                   {/* Placeholder image area */}
@@ -203,6 +202,7 @@ export default async function HomePage() {
                     </div>
                   </CardContent>
                 </Card>
+                </Link>
               ))}
             </div>
           )}
