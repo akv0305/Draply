@@ -35,9 +35,9 @@ const CAT_EMOJI: Record<string, string> = {
 export default async function HomePage() {
   // ── Parallel data fetch ───────────────────────────────────────────────────
   const [categories, stores, products] = await Promise.all([
-    // Top-level categories (parentId is null), up to 6, sorted by sortOrder
+    // Leaf categories (parentId is NOT null), up to 6, sorted by sortOrder
     prisma.category.findMany({
-      where: { parentId: null },
+      where: { parentId: { not: null } },
       orderBy: { sortOrder: "asc" },
       take: 6,
       select: { id: true, slug: true, name: true },

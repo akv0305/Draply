@@ -1,15 +1,26 @@
 "use client";
 
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  acceptSubOrder,
+  markSubOrderPacked,
+  markSubOrderPickedUp,
+} from "@/app/(merchant)/actions";
 
 interface MerchantActionsProps {
-  subOrderId: string; // reserved for Phase 2 server-action wiring
+  subOrderId: string;
   status: string;
 }
 
-export default function MerchantActions(props: MerchantActionsProps) {
-  const { status } = props;
+export default function MerchantActions({
+  subOrderId,
+  status,
+}: MerchantActionsProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -17,9 +28,17 @@ export default function MerchantActions(props: MerchantActionsProps) {
       <Button
         variant="default"
         size="sm"
-        disabled={status !== "PENDING"}
+        disabled={status !== "PENDING" || isPending}
         onClick={() =>
-          toast.success("Accept order stub — wiring in Phase 2")
+          startTransition(async () => {
+            const res = await acceptSubOrder(subOrderId);
+            if (res.ok) {
+              toast.success("Marked ACCEPTED");
+              router.refresh();
+            } else {
+              toast.error(res.message || "Action failed");
+            }
+          })
         }
       >
         Accept order
@@ -29,9 +48,17 @@ export default function MerchantActions(props: MerchantActionsProps) {
       <Button
         variant="outline"
         size="sm"
-        disabled={status !== "ACCEPTED"}
+        disabled={status !== "ACCEPTED" || isPending}
         onClick={() =>
-          toast.success("Mark packed stub — wiring in Phase 2")
+          startTransition(async () => {
+            const res = await markSubOrderPacked(subOrderId);
+            if (res.ok) {
+              toast.success("Marked PACKED");
+              router.refresh();
+            } else {
+              toast.error(res.message || "Action failed");
+            }
+          })
         }
       >
         Mark packed
@@ -41,9 +68,17 @@ export default function MerchantActions(props: MerchantActionsProps) {
       <Button
         variant="outline"
         size="sm"
-        disabled={status !== "PACKED"}
+        disabled={status !== "PACKED" || isPending}
         onClick={() =>
-          toast.success("Mark picked up stub — wiring in Phase 2")
+          startTransition(async () => {
+            const res = await markSubOrderPickedUp(subOrderId);
+            if (res.ok) {
+              toast.success("Marked PICKED UP");
+              router.refresh();
+            } else {
+              toast.error(res.message || "Action failed");
+            }
+          })
         }
       >
         Mark picked up
